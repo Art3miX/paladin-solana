@@ -127,6 +127,8 @@ impl<Tx: TransactionWithMeta> ConsumeWorker<Tx> {
         self.metrics.update_for_consume(&output);
         self.metrics.has_data.store(true, Ordering::Relaxed);
 
+        info!("PAL_TX_LOG CONSUMED: {:#?}", work.transactions);
+        
         self.consumed_sender.send(FinishedConsumeWork {
             work,
             retryable_indexes: output

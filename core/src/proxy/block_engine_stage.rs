@@ -586,6 +586,11 @@ impl BlockEngineStage {
             if batch.packets.is_empty() {
                 block_engine_stats.num_empty_packets.add_assign(1);
                 return Ok(());
+            } else {
+                info!(
+                    "PAL_TX_LOG handle block engine packets not empty: {}",
+                    batch.packets.len()
+                )
             }
 
             let packet_batch = PacketBatch::from(

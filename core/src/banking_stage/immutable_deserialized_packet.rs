@@ -63,12 +63,20 @@ pub struct ImmutableDeserializedPacket {
 impl ImmutableDeserializedPacket {
     pub fn new(packet: PacketRef) -> Result<Self, DeserializedPacketError> {
         let versioned_transaction: VersionedTransaction = packet.deserialize_slice(..)?;
+        let v_len = versioned_transaction.signatures.len();
         let sanitized_transaction = SanitizedVersionedTransaction::try_from(versioned_transaction)?;
         let message_bytes = packet_message(packet)?;
         let message_hash = Message::hash_raw_message(message_bytes);
         let is_simple_vote = packet.meta().is_simple_vote_tx();
         let is_mev = packet.meta().is_mev();
         let forwarded = packet.meta().forwarded();
+
+        if v_len == 1 {
+            info!(
+                "PAL_TX_LOG: ImmutableDeserializedPacket::new: {:#?}",
+                sanitized_transaction.clone().destruct()
+            );
+        }
 
         // drop transaction if prioritization fails.
         let ComputeBudgetLimits {

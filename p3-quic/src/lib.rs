@@ -94,6 +94,8 @@ where
                 variant: QuicVariant::P3,
                 max_staked_connections: MAX_STAKED_CONNECTIONS,
                 max_unstaked_connections: 0,
+                max_connections_per_ipaddr_per_min: 999999,
+                max_connections_per_peer: 99999,
                 // NB: This must be 1 second for the `P3_RATE_LIMIT` const to be valid.
                 stream_throttling_interval_ms: 1000,
                 ..Default::default()
@@ -120,6 +122,8 @@ where
                 variant: QuicVariant::Mev,
                 max_staked_connections: MAX_STAKED_CONNECTIONS,
                 max_unstaked_connections: 0,
+                max_connections_per_ipaddr_per_min: 999999,
+                max_connections_per_peer: 999999,
                 // NB: This must be 1 second for the `P3_RATE_LIMIT` const to be valid.
                 stream_throttling_interval_ms: 1000,
                 ..Default::default()
@@ -205,6 +209,8 @@ where
         let len = packets.len() as u64;
         self.metrics.p3_forwarded += len;
 
+        info!("p3_quic: reg Packet recieved num: {}", packets.len());
+
         for mut packet in packets.iter_mut() {
             packet.meta_mut().set_p3(true);
             // NB: Unset the staked node flag to prevent forwarding.
@@ -220,6 +226,8 @@ where
     fn on_mev_packets(&mut self, mut packets: PacketBatch) {
         let len = packets.len() as u64;
         self.metrics.mev_forwarded += len;
+
+        info!("p3_quic: mev Packet recieved num: {}", len);
 
         // Set drop on revert flag.
         for mut packet in packets.iter_mut() {
@@ -238,6 +246,18 @@ where
         // Load the lockup pool account.
         let Some(pool) = self.accounts.get_account(&POOL_KEY) else {
             warn!("Lockup pool does not exist; pool={POOL_KEY}");
+            let mut stakes: HashMap<Pubkey, u64> = HashMap::new();
+            stakes.insert(
+                Pubkey::from_str_const("3wWrxQNpmGRzaVYVCCGEVLV6GMHG4Vvzza4iT79atw5A"),
+                100_000_000_000,
+            );
+            stakes.insert(
+                Pubkey::from_str_const("3wWrxQNpmGRzaVYVCCGEVLV6GMHG4Vvzza4iT79atw5B"),
+                100_000_000_000,
+            );
+            let stakes = Arc::new(stakes);
+            *self.staked_nodes.write().unwrap() =
+                StakedNodes::new(stakes.clone(), HashMap::default());
 
             return;
         };

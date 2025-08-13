@@ -593,10 +593,20 @@ mod tests {
             create_tx_with_priority_fee(&payer3, &dest4.pubkey(), 1_500, 1200, 35_000),
         ];
 
+        let bundle4_txs = vec![
+            create_tx_with_priority_fee(&payer1, &dest3.pubkey(), 500, 1000, 30_000),
+            solana_system_transaction::transfer(
+            &payer2,
+            &tip_account.pubkey(),
+            40_000,
+            blockhash,
+        )];
+
         // Create immutable bundles
         let immutable_bundle1 = create_bundles_from_transactions(&bundle1_txs);
         let immutable_bundle2 = create_bundles_from_transactions(&bundle2_txs);
         let immutable_bundle3 = create_bundles_from_transactions(&bundle3_txs);
+        let immutable_bundle4 = create_bundles_from_transactions(&bundle4_txs);
 
         // Create sanitized bundles (similar to drain_and_sanitize_bundles)
         let mut error_metrics = TransactionErrorMetrics::default();
@@ -612,6 +622,10 @@ mod tests {
         let sanitized_bundle3 = immutable_bundle3
             .build_sanitized_bundle(&bank, &HashSet::default(), &mut error_metrics)
             .expect("Bundle 3 should sanitize successfully");
+
+        let sanitized_bundle4 = immutable_bundle4
+            .build_sanitized_bundle(&bank, &HashSet::default(), &mut error_metrics)
+            .expect("Bundle 4 should sanitize successfully");
 
         let mut priority_counter = 0;
         let bundle1_priority_key = BundleStorage::calculate_bundle_priority(
@@ -638,16 +652,26 @@ mod tests {
             &tip_accounts,
         );
 
+        let bundle4_priority_key = BundleStorage::calculate_bundle_priority(
+            &immutable_bundle4,
+            &sanitized_bundle4,
+            &bank,
+            &mut priority_counter,
+            &tip_accounts,
+        );
+
         let mut bundles_with_priority = vec![
             (bundle1_priority_key, "Bundle 1"),
             (bundle2_priority_key, "Bundle 2"),
             (bundle3_priority_key, "Bundle 3"),
+            (bundle4_priority_key, "Bundle 4"),
         ];
 
         bundles_with_priority.sort_by_key(|(priority_key, _)| *priority_key);
 
         assert_eq!(bundles_with_priority[0].1, "Bundle 3");
-        assert_eq!(bundles_with_priority[1].1, "Bundle 2");
-        assert_eq!(bundles_with_priority[2].1, "Bundle 1");
+        assert_eq!(bundles_with_priority[1].1, "Bundle 4");
+        assert_eq!(bundles_with_priority[2].1, "Bundle 2");
+        assert_eq!(bundles_with_priority[3].1, "Bundle 1");
     }
 }
