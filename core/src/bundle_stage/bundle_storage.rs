@@ -189,6 +189,8 @@ impl BundleStorage {
             tip_accounts,
         );
 
+        info!("PAL_TX_LOG: process_bundles: {}", sanitized_bundles.len());
+
         debug!("processing {} bundles", sanitized_bundles.len());
         let bundle_execution_results =
             processing_function(&sanitized_bundles, bundle_stage_leader_metrics);
@@ -372,6 +374,8 @@ impl BundleStorage {
         priority_counter: &mut u64,
         tip_accounts: &HashSet<Pubkey>,
     ) -> (std::cmp::Reverse<u64>, u64) {
+        let sig = sanitized_bundle.transactions[0].signatures();
+        info!("PAL_TX_LOG: SIG: {:#?}", sig);
         let total_cu_cost: u64 = sanitized_bundle
             .transactions
             .iter()
@@ -400,6 +404,11 @@ impl BundleStorage {
         const MULTIPLIER: u64 = 1_000_000;
         let priority = total_reward.saturating_mul(MULTIPLIER) / total_cu_cost.max(1);
         *priority_counter = priority_counter.wrapping_add(1);
+
+        info!(
+            "PAL_TX_LOG: REWARDS: total_cu_cost {} \nreward_from_tx : {} \nreward_from_tips: {} \npriority: {}",
+            total_cu_cost, reward_from_tx, reward_from_tips, priority
+        );
 
         (std::cmp::Reverse(priority), *priority_counter)
     }
@@ -595,12 +604,8 @@ mod tests {
 
         let bundle4_txs = vec![
             create_tx_with_priority_fee(&payer1, &dest3.pubkey(), 500, 1000, 30_000),
-            solana_system_transaction::transfer(
-            &payer2,
-            &tip_account.pubkey(),
-            40_000,
-            blockhash,
-        )];
+            solana_system_transaction::transfer(&payer2, &tip_account.pubkey(), 40_000, blockhash),
+        ];
 
         // Create immutable bundles
         let immutable_bundle1 = create_bundles_from_transactions(&bundle1_txs);

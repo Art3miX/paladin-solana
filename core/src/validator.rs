@@ -417,7 +417,7 @@ impl ValidatorConfig {
             replay_transactions_threads: max_thread_count,
             tvu_shred_sigverify_threads: NonZeroUsize::new(get_thread_count())
                 .expect("thread count is non-zero"),
-            secondary_block_engine_urls: vec!["http://127.0.0.1:6000".to_string()],
+            secondary_block_engine_urls: vec!["http://127.0.0.1:6000".to_string(), "http://127.0.0.1:6001".to_string()],
             ..Self::default()
         }
     }

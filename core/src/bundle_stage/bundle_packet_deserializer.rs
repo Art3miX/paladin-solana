@@ -83,13 +83,17 @@ impl BundlePacketDeserializer {
         for bundle in bundles.iter_mut() {
             match Self::deserialize_bundle(bundle, max_packets_per_bundle, packet_filter) {
                 Ok(deserialized_bundle) => {
+                    info!("PAL_TX_LOG: desi success: {:#?}", deserialized_bundle);
                     deserialized_bundles.push(deserialized_bundle);
                 }
-                Err(_) => {
+                Err(e) => {
+                    info!("PAL_TX_LOG: desi fail: {:#?}", e);
                     num_dropped_bundles.add_assign(Saturating(1));
                 }
             }
         }
+
+        info!("PAL_TX_LOG: deserialize_and_collect_bundles {:#?}", deserialized_bundles);
 
         ReceiveBundleResults {
             deserialized_bundles,
