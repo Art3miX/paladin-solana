@@ -17,6 +17,8 @@ use {
     },
 };
 
+const DEFAULT_BUNDLE_RECEIVE_TIMEOUT: Duration = Duration::from_millis(10);
+
 /// Results from deserializing packet batches.
 #[derive(Debug)]
 pub struct ReceiveBundleResults {
@@ -83,17 +85,13 @@ impl BundlePacketDeserializer {
         for bundle in bundles.iter_mut() {
             match Self::deserialize_bundle(bundle, max_packets_per_bundle, packet_filter) {
                 Ok(deserialized_bundle) => {
-                    info!("PAL_TX_LOG: desi success: {:#?}", deserialized_bundle);
                     deserialized_bundles.push(deserialized_bundle);
                 }
-                Err(e) => {
-                    info!("PAL_TX_LOG: desi fail: {:#?}", e);
+                Err(_) => {
                     num_dropped_bundles.add_assign(Saturating(1));
                 }
             }
         }
-
-        info!("PAL_TX_LOG: deserialize_and_collect_bundles {:#?}", deserialized_bundles);
 
         ReceiveBundleResults {
             deserialized_bundles,
@@ -107,27 +105,41 @@ impl BundlePacketDeserializer {
         recv_timeout: Duration,
         bundle_count_upperbound: usize,
     ) -> ReceiveUntilResult {
-        let start = Instant::now();
-
         let mut bundles = self.bundle_packet_receiver.recv_timeout(recv_timeout)?;
+        let first_bundle_time = Instant::now();
         let mut num_packets_received: Saturating<usize> =
             Saturating(bundles.iter().map(|pb| pb.batch.len()).sum());
         let mut num_bundles_received: Saturating<usize> = Saturating(bundles.len());
 
         if num_bundles_received.0 <= bundle_count_upperbound {
-            while let Ok(bundle_packets) = self.bundle_packet_receiver.try_recv() {
-                trace!("got more packet batches in bundle packet deserializer");
-                num_packets_received.add_assign(Saturating(
-                    bundle_packets.iter().map(|pb| pb.batch.len()).sum(),
-                ));
-                num_bundles_received.add_assign(Saturating(bundle_packets.len()));
+            loop {
+                let remaining_batch_time =
+                    DEFAULT_BUNDLE_RECEIVE_TIMEOUT.saturating_sub(first_bundle_time.elapsed());
 
-                bundles.extend(bundle_packets);
-
-                if start.elapsed() >= recv_timeout
-                    || num_bundles_received.0 >= bundle_count_upperbound
-                {
+                if remaining_batch_time.is_zero() {
                     break;
+                }
+
+                match self
+                    .bundle_packet_receiver
+                    .recv_timeout(remaining_batch_time)
+                {
+                    Ok(bundle_packets) => {
+                        trace!("got more packet batches in bundle packet deserializer");
+                        num_packets_received.add_assign(Saturating(
+                            bundle_packets.iter().map(|pb| pb.batch.len()).sum(),
+                        ));
+                        num_bundles_received.add_assign(Saturating(bundle_packets.len()));
+
+                        bundles.extend(bundle_packets);
+
+                        if num_bundles_received.0 >= bundle_count_upperbound {
+                            break;
+                        }
+                    }
+                    Err(_) => {
+                        break;
+                    }
                 }
             }
         }
