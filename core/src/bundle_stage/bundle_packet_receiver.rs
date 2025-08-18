@@ -87,7 +87,7 @@ impl BundleReceiver {
             // packets. This prevents starving BankingStage::consume_buffered_packets due to
             // buffered_packet_batches containing transactions that exceed the cost model for
             // the current bank.
-            Duration::from_millis(100)
+            Duration::from_millis(0)
         } else {
             // BundleStage should pick up a working_bank as fast as possible
             Duration::from_millis(100)

@@ -189,8 +189,6 @@ impl BundleStorage {
             tip_accounts,
         );
 
-        info!("PAL_TX_LOG: process_bundles: {}", sanitized_bundles.len());
-
         debug!("processing {} bundles", sanitized_bundles.len());
         let bundle_execution_results =
             processing_function(&sanitized_bundles, bundle_stage_leader_metrics);
@@ -374,8 +372,6 @@ impl BundleStorage {
         priority_counter: &mut u64,
         tip_accounts: &HashSet<Pubkey>,
     ) -> (std::cmp::Reverse<u64>, u64) {
-        let sig = sanitized_bundle.transactions[0].signatures();
-        info!("PAL_TX_LOG: SIG: {:#?}", sig);
         let total_cu_cost: u64 = sanitized_bundle
             .transactions
             .iter()
