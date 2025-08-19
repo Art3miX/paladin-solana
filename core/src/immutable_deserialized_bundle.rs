@@ -180,7 +180,6 @@ impl ImmutableDeserializedBundle {
             transaction_error_metrics,
         );
 
-        info!("PX_LOG_TX: check tx: {:#?}", check_results);
         if check_results.iter().any(|r| r.is_err()) {
             return Err(DeserializedBundleError::FailedCheckTransactions);
         }
